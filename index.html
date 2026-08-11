@@ -1030,6 +1030,9 @@
 
   <div class="toolbar-historico" style="margin-top:14px">
     <span style="font-size:12px; color:var(--muted); font-family:'Share Tech Mono',monospace;" id="totalRegistros">0 registros</span>
+    <input type="text" id="calcBusca" placeholder="🔍 Buscar produto..." oninput="filtrarTabela(this.value)"
+      style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 12px;font-family:'Share Tech Mono',monospace;font-size:12px;width:220px;outline:none;"
+      onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
     <button class="btn btn-danger" onclick="limparTudo()">🗑 Limpar Tudo</button>
   </div>
 
@@ -1825,6 +1828,37 @@ function gravar() {
 function salvarRegistros(arr) { _dbSet('calculos', arr); }
 function carregarRegistros() { return _dbCache.calculos || []; }
 
+function renderTabela(registros, todosRegistros) {
+  const todos  = todosRegistros || carregarRegistros();
+  const tbody  = document.getElementById('tabelaBody');
+  if (!tbody) return;
+  document.getElementById('totalRegistros').textContent = registros.length + ' registro(s)';
+  const _btnExp = document.getElementById('btnExportar'); if (_btnExp) _btnExp.disabled = registros.length === 0;
+  if (!registros.length) { tbody.innerHTML = '<tr><td colspan="16" class="empty-state">// Nenhum registro encontrado</td></tr>'; return; }
+  tbody.innerHTML = [...registros].reverse().map((r, i) => {
+    const idxOriginal = todos.length - 1 - [...todos].reverse().findIndex(x => x === r || (x.data === r.data && x.nomeProjeto === r.nomeProjeto && x.custoTotal === r.custoTotal));
+    const outros = r.outrosCustos || 0;
+    return `<tr>
+      <td class="row-num td-num">${registros.length - i}</td>
+      <td class="td-muted">${r.data||'—'}</td>
+      <td>${r.nomeProjeto||'—'} <span class="tipo-badge ${r.tipo||'consignado'}">${r.tipo === 'venda_direta' ? '🛒' : '🔑'}</span></td>
+      <td class="td-num">${r.qtd}</td>
+      <td class="td-num td-accent">${fmt(r.custoTotal)}</td>
+      <td class="td-num">${fmt(r.custoPeca)}</td>
+      <td class="td-num td-highlight">${fmt(r.vendaPeca)}</td>
+      <td class="td-num">${r.peso}g</td>
+      <td class="td-num">${fmtTempo(r.horas,r.minutos)}</td>
+      <td class="td-num">${fmt(r.cFilamento)}</td>
+      <td class="td-num">${fmt(r.cEnergia)}</td>
+      <td class="td-num td-success">${fmt((r.cFilamento||0)+(r.cEnergia||0))}</td>
+      <td class="td-num">${fmt(r.cDeprec)}</td>
+      <td class="td-num">${fmt((r.cManut||0)+(r.cPerdas||0))}</td>
+      <td class="td-num" style="${outros>0?'color:var(--accent3)':'color:var(--muted)'}">${outros>0?fmt(outros)+'/peça':'—'}${r.outrosFixo>0?' +'+fmt(r.outrosFixo):''}</td>
+      <td><button class="btn-del" onclick="deletarRegistro(${idxOriginal})" title="Remover">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
 function exportarJSON() {
   const registros = carregarRegistros();
   if (!registros.length) return;
@@ -1853,41 +1887,26 @@ function importarJSON(event) {
   reader.readAsText(file);
 }
 
-function renderTabela(registros) {
-  const tbody = document.getElementById('tabelaBody');
-  document.getElementById('totalRegistros').textContent = registros.length + ' registro(s)';
-  const _btnExp = document.getElementById('btnExportar'); if (_btnExp) _btnExp.disabled = registros.length === 0;
-  if (!registros.length) { tbody.innerHTML = '<tr><td colspan="16" class="empty-state">// Nenhum registro gravado ainda</td></tr>'; return; }
-  tbody.innerHTML = [...registros].reverse().map((r,i) => {
-    const idx    = registros.length - 1 - i; // índice real para deletar
-    const outros = r.outrosCustos || 0;
-    return `<tr>
-      <td class="row-num td-num">${registros.length - i}</td>
-      <td class="td-muted">${r.data||'—'}</td>
-      <td>${r.nomeProjeto||'—'} <span class="tipo-badge ${r.tipo||'consignado'}">${r.tipo === 'venda_direta' ? '🛒' : '🔑'}</span></td>
-      <td class="td-num">${r.qtd}</td>
-      <td class="td-num td-accent">${fmt(r.custoTotal)}</td>
-      <td class="td-num">${fmt(r.custoPeca)}</td>
-      <td class="td-num td-highlight">${fmt(r.vendaPeca)}</td>
-      <td class="td-num">${r.peso}g</td>
-      <td class="td-num">${fmtTempo(r.horas,r.minutos)}</td>
-      <td class="td-num">${fmt(r.cFilamento)}</td>
-      <td class="td-num">${fmt(r.cEnergia)}</td>
-      <td class="td-num td-success">${fmt((r.cFilamento||0)+(r.cEnergia||0))}</td>
-      <td class="td-num">${fmt(r.cDeprec)}</td>
-      <td class="td-num">${fmt((r.cManut||0)+(r.cPerdas||0))}</td>
-      <td class="td-num" style="${outros>0?'color:var(--accent3)':'color:var(--muted)'}">${outros>0?fmt(outros)+'/peça':'—'}${r.outrosFixo>0?' +'+fmt(r.outrosFixo):''}</td>
-      <td><button class="btn-del" onclick="deletarRegistro(${idx})" title="Remover">✕</button></td>
-    </tr>`;
-  }).join('');
+function filtrarTabela(termo) {
+  const registros = carregarRegistros();
+  const filtrados = termo.trim()
+    ? registros.filter(r => r.nomeProjeto?.toLowerCase().includes(termo.toLowerCase()))
+    : registros;
+  renderTabela(filtrados, registros);
+  document.getElementById('totalRegistros').textContent =
+    termo.trim() ? filtrados.length + ' resultado(s) de ' + registros.length : registros.length + ' registro(s)';
 }
 
-function deletarRegistro(i) {
+function deletarRegistro(idxOriginal) {
   if (!confirm('Remover este registro?')) return;
-  const registros = carregarRegistros(); registros.splice(i,1);
-  salvarRegistros(registros); renderTabela(registros); atualizarDashboard();
+  const registros = carregarRegistros();
+  registros.splice(idxOriginal, 1);
+  salvarRegistros(registros);
+  const termo = document.getElementById('calcBusca')?.value || '';
+  filtrarTabela(termo);
+  if (!termo) renderTabela(registros);
+  atualizarDashboard();
 }
-
 function limparTudo() {
   if (!confirm('Apagar TODOS os registros do histórico de cálculos? Essa ação não pode ser desfeita.')) return;
   salvarRegistros([]); renderTabela([]); atualizarDashboard();
