@@ -873,27 +873,48 @@
       <input type="text" id="nomeProjeto" placeholder="Ex: Suporte para câmera, Miniatura dragão...">
     </div>
     <div class="grid-3">
-      <div class="field">
+      <div class="field" style="grid-column:span 1">
         <label>Quantidade</label>
         <div class="field-row">
           <input type="number" id="qtd" min="1" value="1" placeholder="1">
           <div class="unit">un</div>
         </div>
       </div>
-      <div class="field">
-        <label>Tempo de Impressão</label>
-        <div class="field-row">
-          <input type="number" id="horas" min="0" value="0" placeholder="0" style="text-align:center">
-          <div class="unit">h</div>
-          <input type="number" id="minutos" min="0" max="59" value="0" placeholder="0" style="text-align:center">
-          <div class="unit">min</div>
-        </div>
+      <!-- Totais ocultos usados pelo calcular() -->
+      <input type="hidden" id="horas" value="0">
+      <input type="hidden" id="minutos" value="0">
+      <input type="hidden" id="peso" value="0">
+    </div>
+
+    <!-- Mesas de impressão -->
+    <div style="margin-top:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <label style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;">Mesas de Impressão</label>
+        <button onclick="adicionarMesa()" style="background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.25);color:var(--accent);border-radius:8px;padding:5px 14px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:1px;">+ Adicionar Mesa</button>
       </div>
-      <div class="field">
-        <label>Peso Total</label>
-        <div class="field-row">
-          <input type="number" id="peso" min="0" step="0.1" placeholder="0">
-          <div class="unit">g</div>
+      <div id="mesasContainer">
+        <!-- Mesa 1 sempre visível -->
+        <div class="mesa-row" id="mesa-0" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;margin-bottom:10px;">
+          <div class="field" style="margin:0">
+            <label style="font-size:10px;">Mesa 1 — Tempo</label>
+            <div class="field-row">
+              <input type="number" class="mesa-horas" min="0" value="0" placeholder="0" style="text-align:center" oninput="atualizarTotaisMesas()">
+              <div class="unit">h</div>
+              <input type="number" class="mesa-min" min="0" max="59" value="0" placeholder="0" style="text-align:center" oninput="atualizarTotaisMesas()">
+              <div class="unit">min</div>
+            </div>
+          </div>
+          <div class="field" style="margin:0">
+            <label style="font-size:10px;">Mesa 1 — Peso</label>
+            <div class="field-row">
+              <input type="number" class="mesa-peso" min="0" step="0.1" placeholder="0" oninput="atualizarTotaisMesas()">
+              <div class="unit">g</div>
+            </div>
+          </div>
+          <div id="mesaTotais" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);padding:10px 0;grid-column:span 1;">
+            Total: <span id="totalTempoMesas" style="color:var(--accent)">0h 0min</span> · <span id="totalPesoMesas" style="color:var(--accent)">0g</span>
+          </div>
+          <div style="padding-bottom:4px;visibility:hidden;"><button style="background:transparent;border:none;color:var(--danger);font-size:16px;cursor:pointer;">✕</button></div>
         </div>
       </div>
     </div>
@@ -1725,8 +1746,9 @@ function atualizarOutrosHint() {
 function calcular() {
   const qtd          = parseFloat(document.getElementById('qtd').value) || 0;
   const peso         = parseFloat(document.getElementById('peso').value) || 0;
-  const horas        = parseInt(document.getElementById('horas').value) || 0;
-  const minutos      = parseInt(document.getElementById('minutos').value) || 0;
+  const tempoHoras   = parseFloat(document.getElementById('horas').value) || 0;
+  const horas        = Math.floor(tempoHoras);
+  const minutos      = Math.round((tempoHoras - horas) * 60);
   const custoEnergia = parseFloat(document.getElementById('custoEnergia').value) || 0;
   const watts        = parseFloat(document.getElementById('watts').value) || 0;
   const custoFil     = parseFloat(document.getElementById('custoFilamento').value) || 0;
@@ -1739,9 +1761,8 @@ function calcular() {
   const nomeProjeto  = document.getElementById('nomeProjeto').value.trim();
 
   if (!nomeProjeto) { alert('Preencha o Nome do Projeto antes de calcular.'); document.getElementById('nomeProjeto').focus(); return; }
-  if (qtd <= 0 || peso <= 0 || (horas === 0 && minutos === 0)) { alert('Preencha Quantidade, Peso e Tempo antes de calcular.'); return; }
+  if (qtd <= 0 || peso <= 0 || tempoHoras === 0) { alert('Preencha Quantidade, Peso e Tempo antes de calcular.'); return; }
 
-  const tempoHoras = horas + minutos / 60;
   const cFilamento = (peso / 1000) * custoFil;
   const cEnergia   = (watts / 1000) * tempoHoras * custoEnergia;
   const cDeprec    = deprecHora * tempoHoras;
@@ -1815,6 +1836,7 @@ function gravar() {
   const rows = document.querySelectorAll('#tabelaBody tr');
   if (rows.length) { rows[rows.length-1].classList.add('flash'); setTimeout(()=>rows[rows.length-1].classList.remove('flash'),700); }
   showToast('✓ Registro gravado!', 'var(--accent)');
+  resetarMesas();
   atualizarDashboard();
   // Sincronizar produtos na matriz e no dropdown de produção
   sincronizarProdutosMatriz();
@@ -2056,7 +2078,87 @@ function limparTudoProd() {
 }
 
 // ======================================================
-// MÓDULO VENDAS DIRETAS
+// MESAS DE IMPRESSÃO
+// ======================================================
+let _mesaCount = 1;
+
+function atualizarTotaisMesas() {
+  let totalH = 0, totalM = 0, totalP = 0;
+  document.querySelectorAll('.mesa-horas').forEach(el => totalH += parseFloat(el.value) || 0);
+  document.querySelectorAll('.mesa-min').forEach(el  => totalM += parseFloat(el.value) || 0);
+  document.querySelectorAll('.mesa-peso').forEach(el => totalP += parseFloat(el.value) || 0);
+
+  // Normalizar minutos
+  totalH += Math.floor(totalM / 60);
+  totalM  = totalM % 60;
+
+  // Atualizar campos ocultos usados pelo calcular()
+  document.getElementById('horas').value   = totalH + (totalM / 60);
+  document.getElementById('minutos').value = 0;
+  document.getElementById('peso').value    = totalP;
+
+  // Mostrar totais só se tiver mais de uma mesa
+  const temMaisDe1 = _mesaCount > 1;
+  document.getElementById('mesaTotais').style.visibility = temMaisDe1 ? 'visible' : 'hidden';
+  if (temMaisDe1) {
+    document.getElementById('totalTempoMesas').textContent = totalH + 'h ' + totalM + 'min';
+    document.getElementById('totalPesoMesas').textContent  = totalP.toFixed(1) + 'g';
+  }
+}
+
+function adicionarMesa() {
+  _mesaCount++;
+  const n = _mesaCount;
+  const container = document.getElementById('mesasContainer');
+  const div = document.createElement('div');
+  div.className = 'mesa-row';
+  div.id = 'mesa-' + (n-1);
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;margin-bottom:10px;';
+  div.innerHTML = `
+    <div class="field" style="margin:0">
+      <label style="font-size:10px;">Mesa ${n} — Tempo</label>
+      <div class="field-row">
+        <input type="number" class="mesa-horas" min="0" value="0" placeholder="0" style="text-align:center" oninput="atualizarTotaisMesas()">
+        <div class="unit">h</div>
+        <input type="number" class="mesa-min" min="0" max="59" value="0" placeholder="0" style="text-align:center" oninput="atualizarTotaisMesas()">
+        <div class="unit">min</div>
+      </div>
+    </div>
+    <div class="field" style="margin:0">
+      <label style="font-size:10px;">Mesa ${n} — Peso</label>
+      <div class="field-row">
+        <input type="number" class="mesa-peso" min="0" step="0.1" placeholder="0" oninput="atualizarTotaisMesas()">
+        <div class="unit">g</div>
+      </div>
+    </div>
+    <div style="visibility:hidden;"></div>
+    <div style="padding-bottom:4px;">
+      <button onclick="removerMesa('mesa-${n-1}')" style="background:transparent;border:none;color:var(--danger);font-size:18px;cursor:pointer;" title="Remover mesa">✕</button>
+    </div>`;
+  container.appendChild(div);
+  atualizarTotaisMesas();
+}
+
+function removerMesa(id) {
+  const el = document.getElementById(id);
+  if (el) { el.remove(); _mesaCount--; }
+  // Renumerar labels
+  document.querySelectorAll('.mesa-row').forEach((row, i) => {
+    row.querySelectorAll('label').forEach(l => {
+      if (l.textContent.includes('Mesa')) l.textContent = l.textContent.replace(/Mesa \d+/, 'Mesa ' + (i+1));
+    });
+  });
+  atualizarTotaisMesas();
+}
+
+function resetarMesas() {
+  // Remove todas exceto a primeira
+  document.querySelectorAll('.mesa-row:not(#mesa-0)').forEach(el => el.remove());
+  _mesaCount = 1;
+  // Zera a primeira
+  document.querySelectorAll('.mesa-horas, .mesa-min, .mesa-peso').forEach(el => el.value = el.classList.contains('mesa-peso') ? '' : '0');
+  atualizarTotaisMesas();
+}
 // ======================================================
 const VENDAS_KEY = 'print3d_vendas_v1';
 
