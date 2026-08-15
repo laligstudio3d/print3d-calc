@@ -868,32 +868,32 @@
     <div class="section-label" style="margin-top:28px">Dados da Operação</div>
   <div class="card">
     <div class="card-title">Informações da Peça</div>
-    <div class="field" style="margin-bottom:16px">
-      <label>Nome do Projeto</label>
-      <input type="text" id="nomeProjeto" placeholder="Ex: Suporte para câmera, Miniatura dragão...">
-    </div>
-    <div class="grid-3">
-      <div class="field" style="grid-column:span 1">
+    <div style="display:grid;grid-template-columns:1fr 160px;gap:12px;margin-bottom:16px;">
+      <div class="field" style="margin:0">
+        <label>Nome do Projeto</label>
+        <input type="text" id="nomeProjeto" placeholder="Ex: Suporte para câmera, Miniatura dragão...">
+      </div>
+      <div class="field" style="margin:0">
         <label>Quantidade</label>
         <div class="field-row">
           <input type="number" id="qtd" min="1" value="1" placeholder="1">
           <div class="unit">un</div>
         </div>
       </div>
-      <!-- Totais ocultos usados pelo calcular() -->
-      <input type="hidden" id="horas" value="0">
-      <input type="hidden" id="minutos" value="0">
-      <input type="hidden" id="peso" value="0">
     </div>
 
+    <!-- campos ocultos usados pelo calcular() -->
+    <input type="hidden" id="horas" value="0">
+    <input type="hidden" id="minutos" value="0">
+    <input type="hidden" id="peso" value="0">
+
     <!-- Mesas de impressão -->
-    <div style="margin-top:16px;">
+    <div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
         <label style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;">Mesas de Impressão</label>
         <button onclick="adicionarMesa()" style="background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.25);color:var(--accent);border-radius:8px;padding:5px 14px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:1px;">+ Adicionar Mesa</button>
       </div>
       <div id="mesasContainer">
-        <!-- Mesa 1 sempre visível -->
         <div class="mesa-row" id="mesa-0" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;margin-bottom:10px;">
           <div class="field" style="margin:0">
             <label style="font-size:10px;">Mesa 1 — Tempo</label>
@@ -911,7 +911,7 @@
               <div class="unit">g</div>
             </div>
           </div>
-          <div id="mesaTotais" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);padding:10px 0;grid-column:span 1;">
+          <div id="mesaTotais" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);padding:10px 0;visibility:hidden;">
             Total: <span id="totalTempoMesas" style="color:var(--accent)">0h 0min</span> · <span id="totalPesoMesas" style="color:var(--accent)">0g</span>
           </div>
           <div style="padding-bottom:4px;visibility:hidden;"><button style="background:transparent;border:none;color:var(--danger);font-size:16px;cursor:pointer;">✕</button></div>
